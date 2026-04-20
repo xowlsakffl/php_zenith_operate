@@ -328,6 +328,10 @@ class HotbloodEventZenith
         header("Access-Control-Allow-Headers: *");
         $this->writeLog();
         $_POST = json_decode(file_get_contents('php://input'), true);
+
+        if (!is_array($_POST)) {
+            exit(json_encode(['result' => false, 'msg' => 'JSON 형태로 전송해주십시오. ex) {"name":"홍길동","phone":"01012345678"...}'], JSON_UNESCAPED_UNICODE));
+        }
         
         if(isset($_POST['no'])){ //no 변수값이 넘어오면 랜딩번호를 교체
             if(preg_match('/[0-9]+/', $_POST['no'])){
@@ -353,9 +357,6 @@ class HotbloodEventZenith
         if ($this->landing['adv_stop']){
             exit(json_encode(['result' => false, 'msg' => '사용할 수 없는 이벤트입니다.'], JSON_UNESCAPED_UNICODE));
         }
-        if (!is_array($_POST)){
-            exit(json_encode(['result' => false, 'msg' => 'JSON 형태로 전송해주십시오. ex) {"name":"홍길동","phone":"01012345678"...}'], JSON_UNESCAPED_UNICODE));
-        }
         if (!isset($_POST['remote_addr']) || !$_POST['remote_addr']){
             exit(json_encode(['result' => false, 'msg' => '사용자IP는 필수값입니다.'], JSON_UNESCAPED_UNICODE));
         }
@@ -372,7 +373,7 @@ class HotbloodEventZenith
     //데이터 저장
     public function proc()
     { 
-        $is_ajax = $_POST['ajax']; //ajax 형태 인지
+        $is_ajax = $_POST['ajax'] ?? false; //ajax 형태 인지
         $check = new CheckProc($this->no, $_POST, $this->landing, $this->remote_addr, $this->is_our);
         $result = $check->check_proc();
         
@@ -401,11 +402,11 @@ class HotbloodEventZenith
     { 
         $mode = $_POST['mode'] ?? '';
         if ($mode == "getComment") { //코멘트 가져오기
-            $limit = $_POST['limit'] ? $_POST['limit'] : 10;
+            $limit = isset($_POST['limit']) ? max(1, min(100, (int) $_POST['limit'])) : 10;
             $query = "";
             $data = ['result' => false, 'more' => false, 'data' => null];
-            if ($_POST['lastmsg']) {
-                $lastmsg = $_POST['lastmsg'];
+            if (!empty($_POST['lastmsg'])) {
+                $lastmsg = (int) $_POST['lastmsg'];
                 $query = " AND seq < '$lastmsg'";
             }
 
@@ -462,7 +463,7 @@ class HotbloodEventZenith
     public function result()
     {
         $path = '../' . strtoupper($this->hash_no);
-        if ($_SESSION['params']) { //세션에 저장 된 parameter URL에 세팅
+        if (!empty($_SESSION['params'])) { //세션에 저장 된 parameter URL에 세팅
             $params = http_build_query($_SESSION['params']);
             $path .= '?' . $params;
         }
@@ -491,10 +492,10 @@ class HotbloodEventZenith
         $header = $this->setHeader($appendHtml['header'] ?? '');
         $content = $this->setContent($file, $data);
         $header = preg_replace_callback('/\{\{([^\}]+)\}\}/m', function ($matches) {
-            return $GLOBALS["data"][$matches[1]];
+            return $GLOBALS["data"][$matches[1]] ?? '';
         }, $header);
         $content = preg_replace_callback('/\{\{([^\}]+)\}\}/m', function ($matches) {
-            return $GLOBALS["data"][$matches[1]];
+            return $GLOBALS["data"][$matches[1]] ?? '';
         }, $content);
         $page = $this->addStyle($header, $content);
         $page['footer'] = $this->getFooter(); //Footer를 buffer로 저장
@@ -680,7 +681,7 @@ class HotbloodEventZenith
             'evt_seq' => $this->no, 'scheme' => $_SERVER['REQUEST_SCHEME'], 'host' =>  $_SERVER['HTTP_HOST'], 'php_self' => $php_self, 'query_string' => $_SERVER['QUERY_STRING'], 'data' => file_get_contents('php://input'), 'post_data' => http_build_query($_POST), 'remote_addr' => $this->remote_addr, 'server_addr' => $_SERVER['SERVER_ADDR'], 'content_type' => $_SERVER['CONTENT_TYPE'] ?? '', 'user_agent' => $_SERVER['HTTP_USER_AGENT'], 'datetime' => date('Y-m-d H:i:s')
         ];
         $field = array();
-        foreach ($DBdata as $k => $v) $field[] = "`$k` = '{$v}'";
+        foreach ($DBdata as $k => $v) $field[] = "`$k` = '{$this->rwdb->real_escape_string((string) $v)}'";
         $fields = implode(', ', $field);
         $sql = " INSERT INTO event_logs SET {$fields} ";
         $this->db->query($sql, true);
@@ -688,7 +689,11 @@ class HotbloodEventZenith
 
     public function serverinfo()
     {
-        if ($this->our_ip || $_GET['auth']) echo '<pre>' . print_r($_SERVER, 1) . '</pre>';
+        if (!$this->is_our) {
+            throw new Exception("허용되지 않은 접근입니다.");
+        }
+
+        echo '<pre>' . print_r($_SERVER, 1) . '</pre>';
     }
 
     //배열 그리딩
