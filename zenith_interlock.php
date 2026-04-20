@@ -94,10 +94,6 @@ class ZenithInterlock
             $this->db->getLandingBySeq($row['event_seq']);
             $data = array_map('addslashes', $row);
             $interlock_file = __DIR__."/data/{$row['advertiser_name']}/interlock.php";
-            echo '<br>'.$row['advertiser_name'].'/';
-            var_dump(file_exists($interlock_file));
-            echo '<pre>'.print_r($data,1).'</pre>';
-            continue;
             if(file_exists($interlock_file)) //외부연동 파일이 있으면 진행
                 include $interlock_file;
             $this->eventLeadsInterlock($data);
