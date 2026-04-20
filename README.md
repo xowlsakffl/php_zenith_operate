@@ -46,6 +46,8 @@
 | `zenith_test.php` | 연동 테스트 요청 |
 | `zenith_test_form.php` | 신청 테스트 폼 |
 
+위처럼 일부 소스파일만 공개
+
 ## 실행 환경
 
 ```bash
