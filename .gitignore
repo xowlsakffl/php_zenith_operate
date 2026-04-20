@@ -1,0 +1,16 @@
+.env
+.env.*
+!.env.example
+
+zenith_db.php
+dbinfo.php
+
+data/
+inc/
+error/
+
+*.log
+*.tmp
+
+.DS_Store
+Thumbs.db
