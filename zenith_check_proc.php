@@ -155,8 +155,8 @@ class CheckProc
     private function validator()
     {
         $age = $this->post['age'] ?? null;
-        $checkAgeMin = $this->landing['check_age_min'];
-        $checkAgeMax = $this->landing['check_age_max'];
+        $checkAgeMin = $this->landing['check_age_min'] ?? null;
+        $checkAgeMax = $this->landing['check_age_max'] ?? null;
 
         if ($age !== null && $checkAgeMin && $checkAgeMax) {
             if ($age < $checkAgeMin) {
@@ -167,14 +167,14 @@ class CheckProc
         }
 
         /* var align */
-        $name = $this->post['name'];
-        $phone = $this->post['phone'];
-        $encPhone = $this->encryption->encrypt($phone, false);
-        $advertiserNo = $this->landing['advertiser'] ?? '';
-        $mediaNo = $this->landing['med_seq'] ?? '';
-        $ip = $this->remote_addr;
+        $name = $this->rwdb->real_escape_string(trim($this->post['name'] ?? ''));
+        $phone = $this->rwdb->real_escape_string(preg_replace("/[^0-9]/", "", $this->post['phone'] ?? ''));
+        $encPhone = $phone ? $this->rwdb->real_escape_string($this->encryption->encrypt($phone, false)) : '';
+        $advertiserNo = $this->rwdb->real_escape_string($this->landing['advertiser'] ?? '');
+        $mediaNo = $this->rwdb->real_escape_string($this->landing['med_seq'] ?? '');
+        $ip = $this->rwdb->real_escape_string($this->remote_addr);
 
-        $duplicatePrecheck = $this->landing['duplicate_precheck'];
+        $duplicatePrecheck = $this->landing['duplicate_precheck'] ?? '1';
         $sql = "";
 
         switch ($duplicatePrecheck) {

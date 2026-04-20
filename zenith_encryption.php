@@ -4,8 +4,16 @@ class ZenithEncryption
 {
     protected $key, $aes_key;
     public function __construct() {
-        $env = parse_ini_file($_SERVER['DOCUMENT_ROOT'].'/../.env');
-        $this->key = sodium_hex2bin($env['encryption.key']);
+        $envPath = ($_SERVER['DOCUMENT_ROOT'] ?? __DIR__) . '/../.env';
+        $env = is_file($envPath) ? parse_ini_file($envPath) : [];
+
+        if (empty($env['aes.key'])) {
+            throw new RuntimeException('Encryption configuration is missing.');
+        }
+
+        $this->key = !empty($env['encryption.key']) && function_exists('sodium_hex2bin')
+            ? sodium_hex2bin($env['encryption.key'])
+            : null;
         $this->aes_key = $env['aes.key'];
     }
     /*
@@ -34,16 +42,28 @@ class ZenithEncryption
     */
 
     //암호화 함수
-    public function encrypt($data)
+    public function encrypt($data, $random_nonce = true)
     {
+        if ($data === null || $data === '') {
+            return null;
+        }
+
         $key = substr(hex2bin(openssl_digest($this->aes_key, 'sha512')), 0, 16);
         $enc = @openssl_encrypt($data, "AES-128-ECB", $key, true);
+        if ($enc === false) {
+            return null;
+        }
+
         return strtoupper(bin2hex($enc));
     }
 
     //복호화 함수
     public function decrypt($data)
     {
+        if ($data === null || $data === '' || !ctype_xdigit($data)) {
+            return null;
+        }
+
         $data = hex2bin($data);
         $key = substr(hex2bin(openssl_digest($this->aes_key, 'sha512')), 0, 16);
         $dec = @openssl_decrypt($data, "AES-128-ECB", $key, true);
